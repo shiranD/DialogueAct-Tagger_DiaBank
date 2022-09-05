@@ -9,13 +9,15 @@ from typing import Optional, Union
 import json
 import logging
 
-from torchtext.data import Field
+from torchtext.legacy.data import Field
 import torch
 from utils import DataFrameDataset
 import pandas as pd
 import torch.nn as nn
 from transformers import BertForSequenceClassification, BertConfig
 from corpora.taxonomy import Taxonomy
+import sys
+#sys.exit()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ISO_DA")

@@ -17,6 +17,7 @@ from corpora.taxonomy import (
 )
 from typing import List
 from corpora.corpus import Utterance
+import pdb
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ISO_DA")
@@ -59,8 +60,13 @@ class DailyDialog(Corpus):
         for key in corpus:
             with open(f"{folder}/corpus/{key}/dialogues_act_{key}.txt") as acts_f:
                 acts = [line.strip() for line in acts_f.readlines()]
-            with open(f"{folder}/corpus/{key}/dialogues_{key}.txt") as texts_f:
-                texts = [line.strip() for line in texts_f.readlines()]
+            with open(f"{folder}/corpus/{key}/dialogues_{key}.txt", encoding='UTF-8') as texts_f:
+                texts = []
+                for line in texts_f:
+                    texts.append(line[:-1])
+                    #print(repr(line))
+                #texts = [line.strip() for line in texts_f.readlines()]
+                #pdb.set_trace()
             for conv, tags in zip(texts, acts):
                 conversation = []
                 utterances = [u.strip() for u in conv.split("__eou__")]

@@ -31,10 +31,11 @@ if __name__ == "__main__":
     trainer = TransformerTrainer(
         config,
         corpora_list=[
-            # (Maptask, str(Path("data/Maptask").resolve())),
-            # (AMI, str(Path("data/AMI/corpus").resolve())),
+    #        (Maptask, str(Path("data/Maptask").resolve())),
+    #        (AMI, str(Path("data/AMI/corpus").resolve())),
             (Switchboard, str(Path("data/Switchboard").resolve())),
-            (DailyDialog, str(Path("data/DailyDialog").resolve())),
+    #        (DailyDialog, str(Path("data/DailyDialog").resolve())),
         ],
     )
+    #sys.exit()
     t = trainer.train()

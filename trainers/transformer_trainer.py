@@ -5,13 +5,20 @@ from utils import stringify_tags
 from corpora.corpus import Utterance
 from pathlib import Path
 import os
+import sys
 
+import wandb
 from typing import List
 import torch
-from torchtext.data import BucketIterator
+from torchtext.legacy.data import BucketIterator
 import logging
 import random
 from typing import Tuple
+import pdb
+
+random.seed(hash("setting random seeds") % 2**32 - 1)
+torch.manual_seed(hash("setting another seed here") % 2 ** 32 -1)
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("ISO_DA")
@@ -24,6 +31,7 @@ class TransformerTrainer(Trainer):
 
     def __init__(self, config: TransformerConfig, corpora_list: List[Tuple[type, str]]):
         Trainer.__init__(self, config, config.taxonomy, corpora_list)
+        #pdb.set_trace()
         for c in corpora_list:
             try:
                 self.corpora.append(c[0](c[1], config.taxonomy))
@@ -61,9 +69,10 @@ class TransformerTrainer(Trainer):
         :param model_name: name of the model in the models dictionary
         :return: the trained model
         """
+        #pdb.set_trace()
         model = BERT(n_classes).to(self.config.device)
         optimizer = self.config.optimizer(model.parameters(), lr=self.config.lr)
-
+        wandb.watch(model, log="all", log_freq=10)
         if len(train_set) == 0 or n_classes < 2:
             logger.info(
                 f"Skipping training for {model_name}; dataset length was {len(train_set)}, "
@@ -103,7 +112,7 @@ class TransformerTrainer(Trainer):
         global_steps_list = []
 
         logger.info(f"Training model {model_name}")
-
+        #pdb.set_trace()
         # training loop
         model.train()
         for epoch in range(self.config.n_epochs):
@@ -112,63 +121,69 @@ class TransformerTrainer(Trainer):
                 labels = label.type(torch.LongTensor)
                 labels = labels.to(self.config.device)
                 output = model(text, labels)
-                # print("calculating loss")
-                # loss, _ = output
-                # optimizer.zero_grad()
-                # loss.backward()
-                # optimizer.step()
-                #
-                # # update running values
-                # running_loss += loss.item()
-                # global_step += 1
-                # print("evaluation")
-                # # evaluation step
-                # if global_step % eval_every == 0:
-                #     model.eval()
-                #     with torch.no_grad():
-                #
-                #         # validation loop
-                #         for (vtext, vlabels), _ in valid_iter:
-                #             vlabels = vlabels.type(torch.LongTensor)
-                #             vlabels = vlabels.to(self.config.device)
-                #             vtext = vtext.type(torch.LongTensor)
-                #             vtext = vtext.to(self.config.device)
-                #             output = model(vtext, vlabels)
-                #             loss, _ = output
-                #
-                #             valid_running_loss += loss.item()
-                #
-                #     # evaluation
-                #     average_train_loss = running_loss / eval_every
-                #     average_valid_loss = valid_running_loss / len(valid_iter)
-                #     train_loss_list.append(average_train_loss)
-                #     valid_loss_list.append(average_valid_loss)
-                #     global_steps_list.append(global_step)
-                #
-                #     # resetting running values
-                #     running_loss = 0.0
-                #     valid_running_loss = 0.0
-                #     model.train()
-                #
-                #     # print progress
-                #     logger.info(f'Epoch [{epoch + 1}/{self.config.n_epochs}], '
-                #                 f'Step [{global_step}/{self.config.n_epochs * len(train_iter)}], '
-                #                 f'Train Loss: {average_train_loss}, Valid Loss: {average_valid_loss}')
-                #
-                #     # checkpoint
-                #     if best_valid_loss > average_valid_loss:
-                #         best_valid_loss = average_valid_loss
-                #         self.save_checkpoint(model, model_name, best_valid_loss)
+                print("calculating loss")
+                loss, _ = output
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                # update running values
+                running_loss += loss.item()
+                global_step += 1
+                print("evaluation")
+                # evaluation step
+                if global_step % eval_every == 0:
+                    model.eval()
+                    with torch.no_grad():
+                
+                        # validation loop
+                        for (vtext, vlabels), _ in valid_iter:
+                            vlabels = vlabels.type(torch.LongTensor)
+                            vlabels = vlabels.to(self.config.device)
+                            vtext = vtext.type(torch.LongTensor)
+                            vtext = vtext.to(self.config.device)
+                            output = model(vtext, vlabels)
+                            loss, _ = output
+                
+                            valid_running_loss += loss.item()
+                
+                    # evaluation
+                    average_train_loss = running_loss / eval_every
+                    average_valid_loss = valid_running_loss / len(valid_iter)
+                    train_loss_list.append(average_train_loss)
+                    valid_loss_list.append(average_valid_loss)
+                    global_steps_list.append(global_step)
+                
+                    # resetting running values
+                    running_loss = 0.0
+                    valid_running_loss = 0.0
+                    model.train()
+                
+                    # print progress
+                    logger.info(f'Epoch [{epoch + 1}/{self.config.n_epochs}], '
+                                f'Step [{global_step}/{self.config.n_epochs * len(train_iter)}], '
+                                f'Train Loss: {average_train_loss}, Valid Loss: {average_valid_loss}')
+                
+                    # checkpoint
+                    if best_valid_loss > average_valid_loss:
+                        best_valid_loss = average_valid_loss
+                        self.save_checkpoint(model, model_name, best_valid_loss)
 
+            if epoch%2==0:
+                wandb.log({"epoch": epoch, "average train loss": average_train_loss, "average valid loss": average_valid_loss, "best valid loss": best_valid_loss})
         self.save_checkpoint(model, model_name, 1.0)
+        #torch.onnx.export(model, Path(os.path.dirname(self.config.out_folder)), model_name+".onnx")
+        wandb.save(model_name)
         logger.info(f"Finished Training {model_name}!")
         return model
 
     def train(self, dump=True):
+        #pdb.set_trace()
         logger.info(
             f"Training Dialogue Act Tagger for {self.config.taxonomy} taxonomy, using the following corpora:"
             f"{[c.name for c in self.corpora]}"
         )
+        #pdb.set_trace()
         dataset = []
         for corpus in self.corpora:
             logger.info(f"Loading corpus {corpus.name}")
@@ -183,63 +198,77 @@ class TransformerTrainer(Trainer):
         random.shuffle(dataset)
 
         # TODO remove this, it's only here for debugging
-        dataset = dataset[:600]
-
+        # swbd 212302
+        #print(len(dataset))
+        dataset = dataset[:10000]
         train_set = dataset[: int(len(dataset) * 0.85)]
         valid_set = dataset[int(len(dataset) * 0.85) + 1 :]
 
         models = {}
-        if "dimension" in self.config.taxonomy.value.__annotations__.keys():
-            # Train dimension tagger
-            logger.info("Training dimension pipeline")
-            dimension_train = stringify_tags(train_set, "dimension")
-            dimension_dev = stringify_tags(valid_set, "dimension")
+        with wandb.init(project="Dialogue_Act_tagger", config=self.config):
+            config=wandb.config
+            if "dimension" in self.config.taxonomy.value.__annotations__.keys():
+                # Train dimension tagger
+                logger.info("Training dimension pipeline")
+                dimension_train = stringify_tags(train_set, "dimension")
+                dimension_dev = stringify_tags(valid_set, "dimension")
 
-            dimension_values = list(
-                self.config.taxonomy.value.get_dimension_taxonomy().values().keys()
-            )
-            print(dimension_values)
-            models["dimension"] = self.train_transformer(
-                dimension_train,
-                dimension_dev,
-                len(dimension_values),
-                model_name="dimension",
-            )
+                dimension_values = list(
+                    self.config.taxonomy.value.get_dimension_taxonomy().values().keys()
+                )
+                print(dimension_values)
+                models["dimension"] = self.train_transformer(
+                    dimension_train,
+                    dimension_dev,
+                    len(dimension_values),
+                    model_name="dimension",
+                )
 
-            for dimension_value in dimension_values:
-                logger.info(
-                    f"Training communication function pipeline for dimension {dimension_value}"
+                for dimension_value in dimension_values:
+                    logger.info(
+                        f"Training communication function pipeline for dimension {dimension_value}"
+                    )
+                    comm_train = stringify_tags(
+                        train_set,
+                        "comm_function",
+                        filter_attr="dimension",
+                        filter_value=dimension_value,
+                    )
+                    comm_dev = stringify_tags(
+                        valid_set,
+                        "comm_function",
+                        filter_attr="dimension",
+                        filter_value=dimension_value,
+                    )
+                    comm_labels = [[tag for tag in utt.tags] for utt in comm_train]
+                    print("comm_labels", comm_labels)
+                    comm_values = list(
+                        set([label for tagset in comm_labels for label in tagset])
+                    )
+                    print("comm_values", comm_values)
+                    if len(comm_values) == 0:
+                        n_cls = 0
+                    else:
+                        n_cls = max(comm_values)+1
+                    print("comm classes",n_cls)
+                    #models[f"comm_{dimension_value}"] = self.train_transformer(
+                    #    comm_train,
+                    #    comm_dev,
+                    #    len(comm_values),
+                    #    model_name=f"comm_{dimension_value}",
+                    models[f"comm_{dimension_value}"] = self.train_transformer(
+                        comm_train,
+                        comm_dev,
+                        n_cls,
+                        model_name=f"comm_{dimension_value}",
+                    )
+            else:
+                logger.info("Training unified communication function pipeline")
+                comm_train = stringify_tags(train_set, "comm_function")
+                comm_dev = stringify_tags(valid_set, "comm_function")
+                comm_values = list(set([tag for utt in comm_train for tag in utt.tags]))
+                models["comm_all"] = self.train_transformer(
+                    comm_train, comm_dev, len(comm_values), model_name="comm_all"
                 )
-                comm_train = stringify_tags(
-                    train_set,
-                    "comm_function",
-                    filter_attr="dimension",
-                    filter_value=dimension_value,
-                )
-                comm_dev = stringify_tags(
-                    valid_set,
-                    "comm_function",
-                    filter_attr="dimension",
-                    filter_value=dimension_value,
-                )
-                comm_labels = [[tag for tag in utt.tags] for utt in comm_train]
-
-                comm_values = list(
-                    set([label for tagset in comm_labels for label in tagset])
-                )
-                models[f"comm_{dimension_value}"] = self.train_transformer(
-                    comm_train,
-                    comm_dev,
-                    len(comm_values),
-                    model_name=f"comm_{dimension_value}",
-                )
-        else:
-            logger.info("Training unified communication function pipeline")
-            comm_train = stringify_tags(train_set, "comm_function")
-            comm_dev = stringify_tags(valid_set, "comm_function")
-            comm_values = list(set([tag for utt in comm_train for tag in utt.tags]))
-            models["comm_all"] = self.train_transformer(
-                comm_train, comm_dev, len(comm_values), model_name="comm_all"
-            )
-        self.config.pipelines = list(models.keys())
-        return TransformerTagger(self.config)
+            self.config.pipelines = list(models.keys())
+            return TransformerTagger(self.config)
