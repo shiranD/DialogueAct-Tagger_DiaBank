@@ -1,6 +1,6 @@
 #!/bin/bash
 #!/bin/bash
-"ffff"
+
 ### --------  SLURM  ----------- ###
 #SBATCH --job-name=training
 #SBATCH --qos=blanca-kann
