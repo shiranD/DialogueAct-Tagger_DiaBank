@@ -1,5 +1,5 @@
 from taggers.dialogue_act_tagger import DialogueActTagger
-
+from taggers.transformer_tagger import BERT
 from typing import List
 from corpora.corpus import Corpus
 from sklearn.metrics import classification_report
@@ -14,14 +14,19 @@ class DialogueActTester:
     in-depth statistics on a single classifier's performances
     """
 
-    def __init__(self, corpora: List[Corpus]):
+    def __init__(self, corpora: List[Corpus], path: str):
         self.test_set = []
         for corpus in corpora:
             self.test_set = self.test_set + corpus.get_test_split()
         random.shuffle(self.test_set)
         self.test_set = self.test_set[0:100]
+        # load DialogueActTagger
+        self.tagger = BERT()
+        self.tagger.load_state_dict(torch.load(path))
+        self.tagger.eval()
 
-    def test(self, tagger: DialogueActTagger):
+    #def test(self, tagger: DialogueActTagger):
+    def test(self):
         y_true = [u.tags for u in self.test_set]
         y_pred = tagger.tag_batch(self.test_set)
 
@@ -73,3 +78,5 @@ class DialogueActTester:
 
     def test_compare(self, taggers: List[DialogueActTagger]):
         raise NotImplementedError()
+
+
