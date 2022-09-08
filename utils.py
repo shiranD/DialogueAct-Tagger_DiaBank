@@ -1,5 +1,5 @@
 from sklearn.base import BaseEstimator, TransformerMixin
-from torchtext.data import Dataset, Example
+from orchtext.legacy.data import Dataset, Example
 from typing import List, Optional
 from corpora.corpus import Utterance
 from sklearn.preprocessing import MultiLabelBinarizer
