@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from corpora.taxonomy import Taxonomy
 from corpora.maptask import Maptask
 from corpora.switchboard import Switchboard
 from corpora.ami import AMI
@@ -16,10 +17,9 @@ if __name__ == "__main__":
     model_path = "/projects/shdu9019/DA_tagger/DialogueAct-Tagger_DiaBank/models/transformer_example"
     tester = DialogueActTester(
         corpora=[
-    #        (Maptask, str(Path("data/Maptask").resolve())),
-    #        (AMI, str(Path("data/AMI/corpus").resolve())),
-            (Switchboard, str(Path("data/Switchboard").resolve())),
-    #        (DailyDialog, str(Path("data/DailyDialog").resolve())),
+    #        Maptask(str(Path("data/Maptask").resolve()), Taxonomy.ISO),
+    #        AMI(str(Path("data/AMI/corpus").resolve()), Taxonomy.ISO),
+            Switchboard(str(Path("data/Switchboard").resolve()), Taxonomy.ISO),
+    #        DailyDialog(str(Path("data/DailyDialog").resolve()), Taxonomy.ISO),
         ], path=model_path)
-    #sys.exit()
     t = tester.test()
