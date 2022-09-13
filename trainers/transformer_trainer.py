@@ -6,6 +6,7 @@ from corpora.corpus import Utterance
 from pathlib import Path
 import os
 import sys
+import json
 
 import wandb
 from typing import List
@@ -37,7 +38,7 @@ class TransformerTrainer(Trainer):
                 self.corpora.append(c[0](c[1], config.taxonomy))
             except Exception as e:
                 logger.warning(f"Corpus {c[0]} not loaded. {e}")
-
+        
     def save_checkpoint(self, model, model_name, valid_loss):
         """
         Support method to save a checkpoint
@@ -223,7 +224,7 @@ class TransformerTrainer(Trainer):
                     len(dimension_values),
                     model_name="dimension",
                 )
-
+                comm_n_cls = {}
                 for dimension_value in dimension_values:
                     logger.info(
                         f"Training communication function pipeline for dimension {dimension_value}"
@@ -250,6 +251,7 @@ class TransformerTrainer(Trainer):
                         n_cls = 0
                     else:
                         n_cls = max(comm_values)+1
+                    comm_n_cls["comm_"+str(dimension_value)+".pt"]=n_cls
                     print("comm classes",n_cls)
                     #models[f"comm_{dimension_value}"] = self.train_transformer(
                     #    comm_train,
@@ -271,4 +273,7 @@ class TransformerTrainer(Trainer):
                     comm_train, comm_dev, len(comm_values), model_name="comm_all"
                 )
             self.config.pipelines = list(models.keys())
+            self.config.comm_n_cls = comm_n_cls
+            with open(f"{self.config.out_folder}/config.json", "w") as f:
+                json.dump(self.config.to_dict(), f, indent=4)
             return TransformerTagger(self.config)

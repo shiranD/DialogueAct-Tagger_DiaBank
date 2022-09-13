@@ -8,18 +8,20 @@ from corpora.switchboard import Switchboard
 from corpora.ami import AMI
 from corpora.midas import MIDAS
 from corpora.daily_dialog import DailyDialog
-from taggers.transformer_tagger import BERT
+from taggers.transformer_tagger import TransformerTagger
 from tester import DialogueActTester
 from pathlib import Path
 
 
 if __name__ == "__main__":
+    # load transformer tagger model
     model_path = "/projects/shdu9019/DA_tagger/DialogueAct-Tagger_DiaBank/models/transformer_example"
+    tagger = TransformerTagger(model_path)
     tester = DialogueActTester(
         corpora=[
     #        Maptask(str(Path("data/Maptask").resolve()), Taxonomy.ISO),
     #        AMI(str(Path("data/AMI/corpus").resolve()), Taxonomy.ISO),
             Switchboard(str(Path("data/Switchboard").resolve()), Taxonomy.ISO),
     #        DailyDialog(str(Path("data/DailyDialog").resolve()), Taxonomy.ISO),
-        ], path=model_path)
-    t = tester.test()
+        ])
+    t = tester.test(tagger)

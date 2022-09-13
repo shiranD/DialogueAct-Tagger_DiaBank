@@ -18,6 +18,7 @@ from transformers import BertForSequenceClassification, BertConfig
 from corpora.taxonomy import Taxonomy
 import sys
 #sys.exit()
+import pdb
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ISO_DA")
@@ -49,19 +50,36 @@ class TransformerTagger(DialogueActTagger):
     def from_folder(folder: str) -> "TransformerTagger":
         with open(f"{folder}/config.json") as f:
             config = json.load(f)
-        return TransformerTagger(TransformerConfig.from_dict(config))
+        return TransformerConfig.from_dict(config)
+        #return TransformerTagger(TransformerConfig.from_dict(config))
 
-    def __init__(self, cfg: TransformerConfig):
-        DialogueActTagger.__init__(self, cfg)
-        self.acceptance_threshold = cfg.acceptance_threshold
+    #def __init__(self, cfg: TransformerConfig):
+    def __init__(self, cfg_path: str):
+        #DialogueActTagger.__init__(self, cfg)
+        self.config = self.from_folder(cfg_path)
+        #self.acceptance_threshold = cfg.acceptance_threshold
         self.models = {}
         self.history: List[Utterance] = []
+        path1="/projects/shdu9019/DA_tagger/DialogueAct-Tagger_DiaBank/models/transformer_example/"
+        #self.config.pipeline_files = ["dimension.pt", "comm_0.pt", "comm_1.pt", "comm_2.pt", "comm_3.pt"]
+        self.config.pipeline_files = ["comm_1.pt", "comm_2.pt", "comm_3.pt"]
         for pipeline in self.config.pipeline_files:
             try:
-                if "dimension" in pipeline:
-                    model = BERT(self.config.taxonomy).to(cfg.device)
-                    self.load_checkpoint(pipeline, model, cfg.device)
+                if "dimension" in pipeline: 
+                    dimension_values = list(self.config.taxonomy.value.get_dimension_taxonomy().values().keys())
+                    model = BERT(len(dimension_values)).to(self.config.device)
+                    pipeline = path1+pipeline
+                    self.load_checkpoint(pipeline, model, self.config.device)
                     self.models[pipeline] = model
+                if "comm" in pipeline: 
+                    # get comm values
+                    pdb.set_trace()
+                    comm_values = self.config.comm_n_cls[pipeline] 
+                    model = BERT(comm_values).to(self.config.device)
+                    pipeline = path1+pipeline
+                    self.load_checkpoint(pipeline, model, self.config.device)
+                    self.models[pipeline] = model
+                 
             except OSError:
                 logging.error(
                     "The model folder does not contain the required models to run the DA tagger"
@@ -73,7 +91,8 @@ class TransformerTagger(DialogueActTagger):
                 exit(1)
 
     @staticmethod
-    def load_checkpoint(model, load_path, device):
+   #def load_checkpoint(model, load_path, device):
+    def load_checkpoint(model_path, model, device):
         """
         Support method to load a checkpoint into a pytorch model
         :param model: the model to update
@@ -81,12 +100,10 @@ class TransformerTagger(DialogueActTagger):
         :param device: device used for the training
         :return:
         """
-        if load_path is None:
+        if model_path is None:
             return
-
-        state_dict = torch.load(load_path, map_location=device)
-        logger.info(f"Model loaded from <== {load_path}")
-
+        state_dict = torch.load(model_path, map_location=device)
+        logger.info(f"Model loaded from <== {model_path}")
         model.load_state_dict(state_dict["model_state_dict"])
         return state_dict["valid_loss"]
 
