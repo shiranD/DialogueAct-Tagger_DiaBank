@@ -103,6 +103,7 @@ class TransformerConfig(Config):
         n_epochs: int,
         pipeline_files: Optional[List[str]] = None,
         out_folder: str = None,
+        comm_n_classes = []
     ):
         Config.__init__(self, Model.SVM, taxonomy, out_folder)
         if pipeline_files is None:
@@ -118,18 +119,20 @@ class TransformerConfig(Config):
         self.unk_index = self.tokenizer.convert_tokens_to_ids(self.tokenizer.unk_token)
         self.n_epochs = n_epochs
         self.pipeline_files = pipeline_files
+        self.comm_n_cls = {}
 
     @staticmethod
     def from_dict(dict_):
         transformer_config = TransformerConfig(
-            taxonomy=Taxonomy.from_str(dict_["taxonomy"]),
             device=dict_["device"],
-            optimizer=dict_["optimizer"],
             lr=dict_["lr"],
+            optimizer=dict_["optimizer"],
+            taxonomy=Taxonomy.from_str(dict_["taxonomy"]),
             batch_size=dict_["batch_size"],
             max_seq_len=dict_["max_seq_len"],
             n_epochs=dict_["n_epochs"],
-            pipeline_files=dict_["model_files"],
+            pipeline_files=dict_["pipeline_files"],
+            comm_n_classes=dict_["comm_n_cls"]
         )
         transformer_config.out_folder = dict_["out_folder"]
         return transformer_config
@@ -138,7 +141,8 @@ class TransformerConfig(Config):
         return {
             "device": self.device,
             "lr": self.lr,
-            "optimizer": self.optimizer,
+            "optimizer": "Adam",
+            #"optimizer": self.optimizer,
             "taxonomy": self.taxonomy.to_str(),
             "out_folder": self.out_folder,
             "batch_size": self.batch_size,
@@ -147,4 +151,5 @@ class TransformerConfig(Config):
             "unk_index": self.unk_index,
             "n_epochs": self.n_epochs,
             "pipeline_files": self.pipeline_files,
+            "comm_n_cls": self.comm_n_cls   
         }
