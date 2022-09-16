@@ -61,23 +61,24 @@ class TransformerTagger(DialogueActTagger):
         self.models = {}
         self.history: List[Utterance] = []
         path1="/projects/shdu9019/DA_tagger/DialogueAct-Tagger_DiaBank/models/transformer_example/"
-        #self.config.pipeline_files = ["dimension.pt", "comm_0.pt", "comm_1.pt", "comm_2.pt", "comm_3.pt"]
-        self.config.pipeline_files = ["comm_1.pt", "comm_2.pt", "comm_3.pt"]
+        self.config.pipeline_files = ["dimension", "comm_1", "comm_2", "comm_3", "comm_0"]
+        #self.config.pipeline_files = ["comm_1", "comm_2", "comm_3"]
         for pipeline in self.config.pipeline_files:
             try:
                 if "dimension" in pipeline: 
                     dimension_values = list(self.config.taxonomy.value.get_dimension_taxonomy().values().keys())
                     model = BERT(len(dimension_values)).to(self.config.device)
-                    pipeline = path1+pipeline
-                    self.load_checkpoint(pipeline, model, self.config.device)
+                    pipeline_path = path1+pipeline
+                    self.load_checkpoint(pipeline_path, model, self.config.device)
                     self.models[pipeline] = model
                 if "comm" in pipeline: 
                     # get comm values
-                    pdb.set_trace()
                     comm_values = self.config.comm_n_cls[pipeline] 
+                    if comm_values == {}:
+                        comm_values = {"comm_0": 0, "comm_1": 7, "comm_2": 4, "comm_3": 2} 
                     model = BERT(comm_values).to(self.config.device)
-                    pipeline = path1+pipeline
-                    self.load_checkpoint(pipeline, model, self.config.device)
+                    pipeline_path = path1+pipeline
+                    self.load_checkpoint(pipeline_path, model, self.config.device)
                     self.models[pipeline] = model
                  
             except OSError:
@@ -102,7 +103,7 @@ class TransformerTagger(DialogueActTagger):
         """
         if model_path is None:
             return
-        state_dict = torch.load(model_path, map_location=device)
+        state_dict = torch.load(model_path+".pt", map_location=device)
         logger.info(f"Model loaded from <== {model_path}")
         model.load_state_dict(state_dict["model_state_dict"])
         return state_dict["valid_loss"]
@@ -164,14 +165,18 @@ class TransformerTagger(DialogueActTagger):
                 )
         return stringified_dataset
 
-    def tag(self, sentence: Union[Utterance, str]) -> List[Tag]:
-        if type(sentence) == str:
-            sentence = Utterance(
-                text=sentence, tags=[], context=self.history, speaker_id=0
-            )
+    #def tag(self, sentence: Union[Utterance, str]) -> List[Tag]:
+        #if type(sentence) == str:
+           # sentence = Utterance(
+           #     text=sentence, tags=[], context=self.history, speaker_id=0
+           # )
+    def tag(self, utterance: Utterance) -> List[Tag]:
+        assert type(utterance.text) == str
         tags = []
         if self.config.taxonomy == Taxonomy.ISO:
-            dimension_prediction = self.models["dimension"](sentence.text)[1]
+            pdb.set_trace()
+            dimension_prediction = self.models["dimension"](utterance.text, utterance.tags)
+            #dimension_prediction = self.models["dimension"](sentence.text)[1]
             print(dimension_prediction)
             return []
         #     features = self.build_features([sentence], self.config)[0]

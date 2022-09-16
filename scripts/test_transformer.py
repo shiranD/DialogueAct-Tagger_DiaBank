@@ -11,7 +11,7 @@ from corpora.daily_dialog import DailyDialog
 from taggers.transformer_tagger import TransformerTagger
 from tester import DialogueActTester
 from pathlib import Path
-
+import pdb
 
 if __name__ == "__main__":
     # load transformer tagger model
@@ -23,5 +23,6 @@ if __name__ == "__main__":
     #        AMI(str(Path("data/AMI/corpus").resolve()), Taxonomy.ISO),
             Switchboard(str(Path("data/Switchboard").resolve()), Taxonomy.ISO),
     #        DailyDialog(str(Path("data/DailyDialog").resolve()), Taxonomy.ISO),
-        ])
+        ], cfg_path=model_path)
+    #pdb.set_trace()
     t = tester.test(tagger)
