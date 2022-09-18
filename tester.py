@@ -7,7 +7,7 @@ from utils import stringify_tags
 from corpora.corpus import Corpus
 from corpora.corpus import Utterance
 from config import TransformerConfig
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import MultiLabelBinarizer
 import random
 import json
@@ -25,7 +25,7 @@ class DialogueActTester:
         for corpus in corpora:
             self.test_set = self.test_set + corpus.get_test_split()
         random.shuffle(self.test_set)
-        self.test_set = self.test_set[0:1000]
+        self.test_set = self.test_set[0:10000]
         self.config = self.from_folder(cfg_path)
 
     @staticmethod
@@ -34,11 +34,11 @@ class DialogueActTester:
             config = json.load(f)
         return TransformerConfig.from_dict(config)
 
-    def tag_test(self, tagger: DialogueActTagger, test_set: List[Utterance]):
+    def tag_test(self, tagger: DialogueActTagger, test_set: List[Utterance], pipeline: str):
         """
         Evalautes batch size test sets
         """
-        pipeline = "dimension"
+        #pipeline = "dimension"
         model = tagger.models[pipeline]
         test_iter = BucketIterator(
         tagger.build_features(test_set, self.config),
@@ -49,11 +49,10 @@ class DialogueActTester:
         sort=True,
         sort_within_batch=True,
         ) 
-        #pdb.set_trace()
         model.eval()
         test_running_loss = 0
-        all_preds = 
-        all_labels = 
+        all_preds = torch.Tensor([0])
+        all_labels = torch.Tensor([0])
         with torch.no_grad():
 
             # test loop
@@ -65,22 +64,31 @@ class DialogueActTester:
                 output = model(text, labels)
                 loss, preds = output
                 y_pred = torch.argmax(preds, dim=1)
+                all_preds = torch.cat((all_preds, y_pred), 0)
+                all_labels = torch.cat((all_labels, labels), 0)
                 test_running_loss += loss.item()
         # return y_hats
-        return loss, y_pred, labels
+        return test_running_loss, all_labels[1:], all_preds[1:]
 
     def test(self, tagger: DialogueActTagger):
-        #pdb.set_trace()
-        facets = ["dimension", "comm_0", "comm_1", "comm_2", "comm_3"]
-        facets = ["dimension"]
-        classes = {"dimension": ["unknown", "task", "social obligation", "feedback"]}
-        for facet in facets:
-            test_set = stringify_tags(self.test_set, facet)
-            loss, y_preds, y_true = self.tag_test(tagger, test_set)
-            print(facet)
-            print(classification_report(y_true, y_preds, target_names=classes[facet]))
-            print(confusion_matrix(y_true, y_pred, labels=classes[facet]))
-            print("test loss is {loss}")
+        classes = {"dimension": ["Unknown", "Task", "Social Obligation", "Feedback"], "comm_3": ["Unknown", "Feedback"], "comm_2": ["Unknown", "Thanking", "Salutation", "Apology"], "comm_1": ["Unknown", "Statement", "PropQ", "SetQ", "ChoiceQ", "Directive", "Commissive"] }
+        dimension_values = list(self.config.taxonomy.value.get_dimension_taxonomy().values().keys())
+        facets = ["dimension", "comm_1", "comm_2", "comm_3"]
+        facet = "dimension"
+        test_set = stringify_tags(self.test_set, facet)
+        loss, y_preds, y_true = self.tag_test(tagger, test_set, facet)
+        print(classification_report(y_true, y_preds))#, target_names=classes[facet]))
+        print(confusion_matrix(y_true, y_preds))#, labels=classes[facet]))
+        print(f"test loss of {facet} is {loss}")
+        for dimension_value in dimension_values:
+            test_set = stringify_tags(self.test_set, "comm_function", filter_attr=facet, filter_value=dimension_value)
+            if test_set:
+                loss, y_preds, y_true = self.tag_test(tagger, test_set, "comm_"+str(dimension_value))
+                print(dimension_value)
+        #        pdb.set_trace()
+                print(classification_report(y_true, y_preds))#, target_names=classes["comm_"+str(dimension_value)]))
+                print(confusion_matrix(y_true, y_preds))#, labels=classes["comm_"+str(dimension_value)]))
+                print(f"test loss comm_{dimension_value} is {loss}")
 
 
         #y_true = [u.tags for u in self.test_set]
